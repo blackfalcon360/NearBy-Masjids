@@ -481,7 +481,7 @@ public class MainActivity extends Activity implements LocationListener {
                         }
                     }
 
-                    // Sort closest first (10m, 50m, 100m, ..., 3000m)
+                    // Sort closest first (10m, 50m, 100m, ..., 1000m)
                     Collections.sort(res, (a, b) -> Float.compare(a.dist, b.dist));
 
                     runOnUiThread(() -> {
