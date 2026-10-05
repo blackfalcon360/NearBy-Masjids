@@ -54,14 +54,14 @@ public class MainActivity extends Activity implements LocationListener {
             "\u063A\u0631\u0628", "\u0634\u0645\u0627\u0644 \u063A\u0631\u0628"};
 
     static class Mosque {
-        String name, nameAr, nameEn;
+        String name, nameAr, nameEn, religion;
         double lat, lon;
         float dist, bearing;
     }
 
     private boolean arabic;
     private int state = S_IDLE;
-    private int radius = 3000;
+    private int radius = 5000; // Updated default radius to 5km
     private int generation = 0;
     private Location loc;
     private final List<Mosque> mosques = new ArrayList<>();
@@ -133,7 +133,7 @@ public class MainActivity extends Activity implements LocationListener {
 
         titleTv = new TextView(this);
         titleTv.setTextColor(Color.WHITE);
-        titleTv.setTextSize(26);
+        titleTv.setTextSize(24);
         titleTv.setTypeface(Typeface.DEFAULT_BOLD);
 
         subtitleTv = new TextView(this);
@@ -176,7 +176,7 @@ public class MainActivity extends Activity implements LocationListener {
         widerBtn = pill();
         widerBtn.setOnClickListener(v -> {
             if (loc == null) return;
-            radius = radius < 6000 ? 6000 : 12000;
+            radius = radius < 10000 ? 10000 : 20000;
             generation++;
             state = S_FETCH;
             renderAll();
@@ -230,8 +230,8 @@ public class MainActivity extends Activity implements LocationListener {
 
     private void renderAll() {
         root.setLayoutDirection(arabic ? View.LAYOUT_DIRECTION_RTL : View.LAYOUT_DIRECTION_LTR);
-        titleTv.setText("\uD83D\uDD4C " + t("Nearby Mosques", "\u0627\u0644\u0645\u0633\u0627\u062C\u062F \u0627\u0644\u0642\u0631\u064A\u0628\u0629"));
-        subtitleTv.setText(t("Find a place to pray near you", "\u0627\u0628\u062D\u062B \u0639\u0646 \u0645\u0643\u0627\u0646 \u0644\u0644\u0635\u0644\u0627\u0629 \u0628\u0627\u0644\u0642\u0631\u0628 \u0645\u0646\u0643"));
+        titleTv.setText("\uD83D\uDD4C " + t("Nearby Worship Places", "\u062F\u0648\u0631 \u0627\u0644\u0639\u0628\u0627\u062F\u0629 \u0627\u0644\u0642\u0631\u064A\u0628\u0629"));
+        subtitleTv.setText(t("Find places of worship near you", "\u0627\u0628\u062D\u062B \u0639\u0646 \u062F\u0648\u0631 \u0627\u0644\u0639\u0628\u0627\u062F\u0629 \u0628\u0627\u0644\u0642\u0631\u0628 \u0645\u0646\u0643"));
         refreshBtn.setText("\u21BB  " + t("Refresh location", "\u062A\u062D\u062F\u064A\u062B \u0627\u0644\u0645\u0648\u0642\u0639"));
         langBtn.setText(arabic ? "English" : "\u0627\u0644\u0639\u0631\u0628\u064A\u0629");
         langBtn.setLayoutDirection(View.LAYOUT_DIRECTION_LTR);
@@ -241,21 +241,21 @@ public class MainActivity extends Activity implements LocationListener {
             case S_LOC:
                 statusTv.setText(t("Finding your location\u2026", "\u062C\u0627\u0631\u064D \u062A\u062D\u062F\u064A\u062F \u0645\u0648\u0642\u0639\u0643\u2026")); break;
             case S_FETCH:
-                statusTv.setText(t("Searching for nearby mosques\u2026", "\u062C\u0627\u0631\u064D \u0627\u0644\u0628\u062D\u062B \u0639\u0646 \u0627\u0644\u0645\u0633\u0627\u062C\u062F \u0627\u0644\u0642\u0631\u064A\u0628\u0629\u2026")); break;
+                statusTv.setText(t("Searching for worship places\u2026", "\u062C\u0627\u0631\u064D \u0627\u0644\u0628\u062D\u062B \u0639\u0646 \u062F\u0648\u0631 \u0627\u0644\u0639\u0628\u0627\u062F\u0629\u2026")); break;
             case S_DONE:
                 if (mosques.isEmpty()) {
-                    statusTv.setText(t("No mosques found within " + km + " km", "\u0644\u0645 \u064A\u062A\u0645 \u0627\u0644\u0639\u062B\u0648\u0631 \u0639\u0644\u0649 \u0645\u0633\u0627\u062C\u062F \u0636\u0645\u0646 " + km + " \u0643\u0645"));
+                    statusTv.setText(t("No worship places found within " + km + " km", "\u0644\u0645 \u064A\u062A\u0645 \u0627\u0644\u0639\u062B\u0648\u0631 \u0639\u0644\u0649 \u062F\u0648\u0631 \u0639\u0628\u0627\u062F\u0629 \u0636\u0645\u0646 " + km + " \u0643\u0645"));
                 } else {
-                    statusTv.setText(t(mosques.size() + " mosques within " + km + " km",
-                            mosques.size() + " \u0645\u0633\u062C\u062F \u0636\u0645\u0646 " + km + " \u0643\u0645"));
+                    statusTv.setText(t(mosques.size() + " places found within " + km + " km",
+                            mosques.size() + " \u062F\u0648\u0631 \u0639\u0628\u0627\u062F\u0629 \u0636\u0645\u0646 " + km + " \u0643\u0645"));
                 }
                 break;
             case S_NONET:
-                statusTv.setText(t("Couldn't load mosques. Check your internet and refresh.",
-                        "\u062A\u0639\u0630\u0651\u0631 \u062A\u062D\u0645\u064A\u0644 \u0627\u0644\u0645\u0633\u0627\u062C\u062F. \u062A\u062D\u0642\u0642 \u0645\u0646 \u0627\u0644\u0625\u0646\u062A\u0631\u0646\u062A \u062B\u0645 \u062D\u062F\u0651\u062B.")); break;
+                statusTv.setText(t("Couldn't load places. Check your internet and refresh.",
+                        "\u062A\u0639\u0630\u0651\u0631 \u062A\u062D\u0645\u062A\u0644 \u0627\u0644\u0628\u064A\u0627\u0646\u0627\u062A. \u062A\u062D\u0642\u0642 \u0645\u0646 \u0627\u0644\u0625\u0646\u062A\u0631\u0646\u062A.")); break;
             case S_NOPERM:
-                statusTv.setText(t("Location permission is needed to find mosques near you.",
-                        "\u0645\u0637\u0644\u0648\u0628 \u0625\u0630\u0646 \u0627\u0644\u0645\u0648\u0642\u0639 \u0644\u0644\u0639\u062B\u0648\u0631 \u0639\u0644\u0649 \u0627\u0644\u0645\u0633\u0627\u062C\u062F \u0627\u0644\u0642\u0631\u064A\u0628\u0629 \u0645\u0646\u0643.")); break;
+                statusTv.setText(t("Location permission is needed to find nearby places.",
+                        "\u0645\u0637\u0644\u0648\u0628 \u0625\u0630\u0646 \u0627\u0644\u0645\u0648\u0642\u0639 \u0644\u0644\u0639\u062B\u0648\u0631 \u0639\u0644\u0649 \u062F\u0648\u0631 \u0627\u0644\u0639\u0628\u0627\u062F\u0629.")); break;
             case S_NOLOC:
                 statusTv.setText(t("Couldn't get your location. Turn on GPS and refresh.",
                         "\u062A\u0639\u0630\u0651\u0631 \u062A\u062D\u062F\u064A\u062F \u0645\u0648\u0642\u0639\u0643. \u0634\u063A\u0651\u0644 \u0627\u0644\u0640 GPS \u062B\u0645 \u062D\u062F\u0651\u062B.")); break;
@@ -264,7 +264,7 @@ public class MainActivity extends Activity implements LocationListener {
         }
 
         widerBtn.setText(t("Search wider", "\u062A\u0648\u0633\u064A\u0639 \u0627\u0644\u0628\u062D\u062B"));
-        widerBtn.setVisibility(state == S_DONE && radius < 12000 ? View.VISIBLE : View.GONE);
+        widerBtn.setVisibility(state == S_DONE && radius < 20000 ? View.VISIBLE : View.GONE);
 
         listBox.removeAllViews();
         if (state == S_DONE) {
@@ -341,7 +341,7 @@ public class MainActivity extends Activity implements LocationListener {
         String n;
         if (arabic) n = first(m.nameAr, m.name, m.nameEn);
         else n = first(m.nameEn, m.name, m.nameAr);
-        return n != null ? n : t("Mosque", "\u0645\u0633\u062C\u062F");
+        return n != null ? n : t("Place of Worship", "\u062F\u0627\u0631 \u0639\u0628\u0627\u062F\u0629");
     }
 
     private static String first(String... s) {
@@ -379,7 +379,7 @@ public class MainActivity extends Activity implements LocationListener {
         stopLocation();
         mosques.clear();
         loc = null;
-        radius = 3000;
+        radius = 5000;
 
         if (!hasPerm()) {
             state = S_NOPERM;
@@ -478,11 +478,14 @@ public class MainActivity extends Activity implements LocationListener {
 
     private String query(Location l, int r) throws Exception {
         String around = "(around:" + r + "," + l.getLatitude() + "," + l.getLongitude() + ")";
+        // Broad Overpass API Query for all Places of Worship
         String q = "[out:json][timeout:25];("
-                + "node[\"amenity\"=\"place_of_worship\"][\"religion\"=\"muslim\"]" + around + ";"
-                + "way[\"amenity\"=\"place_of_worship\"][\"religion\"=\"muslim\"]" + around + ";"
+                + "node[\"amenity\"=\"place_of_worship\"]" + around + ";"
+                + "way[\"amenity\"=\"place_of_worship\"]" + around + ";"
                 + "node[\"building\"=\"mosque\"]" + around + ";"
                 + "way[\"building\"=\"mosque\"]" + around + ";"
+                + "node[\"building\"=\"church\"]" + around + ";"
+                + "way[\"building\"=\"church\"]" + around + ";"
                 + ");out center tags;";
         Exception last = null;
         for (String ep : ENDPOINTS) {
@@ -492,7 +495,7 @@ public class MainActivity extends Activity implements LocationListener {
                 c.setConnectTimeout(15000);
                 c.setReadTimeout(30000);
                 c.setDoOutput(true);
-                c.setRequestProperty("User-Agent", "NearbyMosques/1.0 (Android)");
+                c.setRequestProperty("User-Agent", "NearbyWorshipPlaces/1.0 (Android)");
                 c.setRequestProperty("Content-Type", "application/x-www-form-urlencoded");
                 OutputStream os = c.getOutputStream();
                 os.write(("data=" + URLEncoder.encode(q, "UTF-8")).getBytes("UTF-8"));
@@ -529,6 +532,7 @@ public class MainActivity extends Activity implements LocationListener {
                 m.name = tags.has("name") ? tags.optString("name") : null;
                 m.nameAr = tags.has("name:ar") ? tags.optString("name:ar") : null;
                 m.nameEn = tags.has("name:en") ? tags.optString("name:en") : null;
+                m.religion = tags.has("religion") ? tags.optString("religion") : null;
             }
             float[] res = new float[2];
             Location.distanceBetween(me.getLatitude(), me.getLongitude(), la, lo, res);
