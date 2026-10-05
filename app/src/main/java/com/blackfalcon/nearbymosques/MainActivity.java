@@ -44,12 +44,9 @@ public class MainActivity extends Activity implements LocationListener {
     private static final int CARD = Color.parseColor("#121212");
     private static final int BORDER = Color.parseColor("#2A2A2A");
     private static final int GRAY = Color.parseColor("#9E9E9E");
-    private static final String[] ENDPOINTS = {
-            "https://overpass-api.de/api/interpreter",
-            "https://overpass.kumi.systems/api/interpreter"
-    };
+
     private static final String[] DIR_EN = {"N", "NE", "E", "SE", "S", "SW", "W", "NW"};
-    private static final String[] DIR_AR = {"\u0634\u0645\u0627\u0644", "\u0634\u0645\u0627\u0644 \u0634\u0631\u0642", "\u0634\u0631\u0642",
+    private static final String[] DIR_AR = {"\u0634\u0645\u0627\u0644", "\u0634\u0645\u0627\u0644 \u0634\u0631\u0642", "\u0631\u0642",
             "\u062C\u0646\u0648\u0628 \u0634\u0631\u0642", "\u062C\u0646\u0648\u0628", "\u062C\u0646\u0648\u0628 \u063A\u0631\u0628",
             "\u063A\u0631\u0628", "\u0634\u0645\u0627\u0644 \u063A\u0631\u0628"};
 
@@ -61,7 +58,7 @@ public class MainActivity extends Activity implements LocationListener {
 
     private boolean arabic;
     private int state = S_IDLE;
-    private int radius = 3000;
+    private int radius = 5000;
     private int generation = 0;
     private Location loc;
     private final List<Mosque> mosques = new ArrayList<>();
@@ -176,7 +173,7 @@ public class MainActivity extends Activity implements LocationListener {
         widerBtn = pill();
         widerBtn.setOnClickListener(v -> {
             if (loc == null) return;
-            radius = radius < 6000 ? 6000 : 12000;
+            radius = radius < 10000 ? 10000 : 20000;
             generation++;
             state = S_FETCH;
             renderAll();
@@ -230,11 +227,10 @@ public class MainActivity extends Activity implements LocationListener {
 
     private void renderAll() {
         root.setLayoutDirection(arabic ? View.LAYOUT_DIRECTION_RTL : View.LAYOUT_DIRECTION_LTR);
-        // Header updated as requested
         titleTv.setText("\uD83D\uDD4C " + t("Find a place to pray near you...", "\u0627\u0628\u062D\u062B \u0639\u0646 \u0645\u0643\u0627\u0646 \u0644\u0644\u0635\u0644\u0627\u0629 \u0628\u0627\u0644\u0642\u0631\u0628 \u0645\u0646\u0643..."));
         subtitleTv.setText(t("Nearby Mosques, Jamia & Madrasas", "\u0627\u0644\u0645\u0633\u0627\u062C\u062F \u0648\u0627\u0644\u062C\u0648\u0627\u0645\u0639 \u0648\u0627\u0644\u0645\u062F\u0627\u0631\u0633 \u0627\u0644\u0642\u0631\u064A\u0628\u0629"));
-        refreshBtn.setText("\u21BB  " + t("Refresh location", "\u062A\u062D\u062F\u064A\u062B \u0627\u0644\u0645\u0638\u0648\u0642\u0639"));
-        langBtn.setText(arabic ? "English" : "\u0627\u0644\u0639\u0631\u0628\u064A\u0629");
+        refreshBtn.setText("\u21BB  " + t("Refresh location", "\u062A\u062D\u062F\u064A\u062B \u0627\u0644\u0645\u0648\u0642\u0639"));
+        langBtn.setText(arabic ? "English" : "\u0627\u0639\u0631\u0628\u064A\u0629");
         langBtn.setLayoutDirection(View.LAYOUT_DIRECTION_LTR);
 
         String km = String.format(Locale.US, "%.0f", radius / 1000f);
@@ -252,8 +248,8 @@ public class MainActivity extends Activity implements LocationListener {
                 }
                 break;
             case S_NONET:
-                statusTv.setText(t("Couldn't load places. Check your internet and refresh.",
-                        "\u062A\u0639\u0630\u0651\u0631 \u062A\u062D\u0645\u064A\u0644 \u0627\u0644\u0623\u0645\u0627\u0643\u0646. \u062A\u062D\u0642\u0642 \u0645\u0646 \u0627\u0644\u0625\u0646\u062A\u0631\u0646\u062A \u062B\u0645 \u062D\u062F\u0651\u062B.")); break;
+                statusTv.setText(t("Couldn't load places. Check internet connection and refresh.",
+                        "\u062A\u0639\u0630\u0651\u0631 \u062A\u062D\u0645\u064A\u0644 \u0627\u0644\u0623\u0645\u0627\u0643\u0646. \u062A\u062D\u0642\u0642 \u0645\u0646 \u0627\u0644\u0625\u0646\u062A\u0631\u0646\u062A.")); break;
             case S_NOPERM:
                 statusTv.setText(t("Location permission is needed to find places near you.",
                         "\u0645\u0637\u0644\u0648\u0628 \u0625\u0630\u0646 \u0627\u0644\u0645\u0648\u0642\u0639 \u0644\u0644\u0639\u062B\u0648\u0631 \u0639\u0644\u0649 \u0623\u0645\u0627\u0643\u0646 \u0627\u0644\u0635\u0644\u0627\u0629.")); break;
@@ -265,7 +261,7 @@ public class MainActivity extends Activity implements LocationListener {
         }
 
         widerBtn.setText(t("Search wider", "\u062A\u0648\u0633\u064A\u0639 \u0627\u0644\u0628\u062D\u062B"));
-        widerBtn.setVisibility(state == S_DONE && radius < 12000 ? View.VISIBLE : View.GONE);
+        widerBtn.setVisibility(state == S_DONE && radius < 20000 ? View.VISIBLE : View.GONE);
 
         listBox.removeAllViews();
         if (state == S_DONE) {
@@ -312,7 +308,7 @@ public class MainActivity extends Activity implements LocationListener {
         name.setTypeface(Typeface.DEFAULT_BOLD);
 
         TextView sub = new TextView(this);
-        sub.setText(t("Direction: ", "\u0627\u0644\u0627\u062A\u062C\u0627\u0647: ") + dirName(m.bearing)
+        sub.setText(t("Direction: ", "\u0627\u0644\u0627\u062A\u062C\u0627\u0627\u0647: ") + dirName(m.bearing)
                 + "  \u2022  " + t("Tap for directions", "\u0627\u0636\u063A\u0637 \u0644\u0644\u0645\u0633\u0627\u0631"));
         sub.setTextColor(GRAY);
         sub.setTextSize(13);
@@ -342,7 +338,7 @@ public class MainActivity extends Activity implements LocationListener {
         String n;
         if (arabic) n = first(m.nameAr, m.name, m.nameEn);
         else n = first(m.nameEn, m.name, m.nameAr);
-        return n != null ? n : t("Place of Worship", "\u0645\u0643\u0627\u0646 \u0644\u0644\u0635\u0644\u0627\u0629");
+        return n != null ? n : t("Mosque / Prayer Place", "\u0645\u0633\u062C\u062F / \u0645\u0635\u0644\u0649");
     }
 
     private static String first(String... s) {
@@ -380,7 +376,7 @@ public class MainActivity extends Activity implements LocationListener {
         stopLocation();
         mosques.clear();
         loc = null;
-        radius = 3000;
+        radius = 5000;
 
         if (!hasPerm()) {
             state = S_NOPERM;
@@ -458,12 +454,22 @@ public class MainActivity extends Activity implements LocationListener {
     private void fetch(final Location l, final int r, final int gen) {
         new Thread(() -> {
             try {
-                String json = query(l, r);
-                final List<Mosque> res = parse(json, l);
+                String json = queryOverpass(l, r);
+                List<Mosque> res = parseOverpass(json, l);
+
+                // Fallback: If Overpass returns empty, try Nominatim API
+                if (res.isEmpty()) {
+                    try {
+                        String nomJson = queryNominatim(l);
+                        res = parseNominatim(nomJson, l);
+                    } catch (Exception ignored) { }
+                }
+
+                final List<Mosque> finalRes = res;
                 runOnUiThread(() -> {
                     if (gen != generation || isFinishing()) return;
                     mosques.clear();
-                    mosques.addAll(res);
+                    mosques.addAll(finalRes);
                     state = S_DONE;
                     renderAll();
                 });
@@ -477,52 +483,76 @@ public class MainActivity extends Activity implements LocationListener {
         }).start();
     }
 
-    private String query(Location l, int r) throws Exception {
+    private String queryOverpass(Location l, int r) throws Exception {
         String around = "(around:" + r + "," + l.getLatitude() + "," + l.getLongitude() + ")";
         
-        // Comprehensive Query for Masjids, Jamia, Madrasas, and Places of Worship
-        String nameRegex = "(?i)(masjid|mosque|madrasa|madrasah|jamia|\u0645\u0633\u062C\u062F|\u062C\u0627\u0645\u0639\u0629|\u0645\u062F\u0631\u0633\u0647|\u0645\u062F\u0631\u0633\u0629)";
-        
+        // Clean and valid Overpass QL
         String q = "[out:json][timeout:25];("
                 + "node[\"amenity\"=\"place_of_worship\"]" + around + ";"
                 + "way[\"amenity\"=\"place_of_worship\"]" + around + ";"
                 + "node[\"building\"=\"mosque\"]" + around + ";"
                 + "way[\"building\"=\"mosque\"]" + around + ";"
-                + "node[\"amenity\"=\"school\"][\"name\"~\"" + nameRegex + "\"]" + around + ";"
-                + "way[\"amenity\"=\"school\"][\"name\"~\"" + nameRegex + "\"]" + around + ";"
-                + "node[\"name\"~\"" + nameRegex + "\"]" + around + ";"
-                + "way[\"name\"~\"" + nameRegex + "\"]" + around + ";"
+                + "node[\"amenity\"=\"school\"]" + around + ";"
                 + ");out center tags;";
 
+        String[] endpoints = {
+                "https://overpass-api.de/api/interpreter",
+                "https://overpass.kumi.systems/api/interpreter",
+                "https://maps.mail.ru/osm/tools/overpass/api/interpreter"
+        };
+
         Exception last = null;
-        for (String ep : ENDPOINTS) {
+        for (String ep : endpoints) {
             try {
                 HttpURLConnection c = (HttpURLConnection) new URL(ep).openConnection();
                 c.setRequestMethod("POST");
                 c.setConnectTimeout(15000);
-                c.setReadTimeout(30000);
+                c.setReadTimeout(25000);
                 c.setDoOutput(true);
-                c.setRequestProperty("User-Agent", "NearbyWorshipPlaces/1.0 (Android)");
+                c.setRequestProperty("User-Agent", "NearbyPrayerPlaces/1.0 (Android)");
                 c.setRequestProperty("Content-Type", "application/x-www-form-urlencoded");
                 OutputStream os = c.getOutputStream();
                 os.write(("data=" + URLEncoder.encode(q, "UTF-8")).getBytes("UTF-8"));
                 os.close();
-                if (c.getResponseCode() != 200) throw new Exception("HTTP " + c.getResponseCode());
-                InputStream in = c.getInputStream();
-                ByteArrayOutputStream bo = new ByteArrayOutputStream();
-                byte[] buf = new byte[8192];
-                int n;
-                while ((n = in.read(buf)) > 0) bo.write(buf, 0, n);
-                in.close();
-                return bo.toString("UTF-8");
+
+                if (c.getResponseCode() == 200) {
+                    InputStream in = c.getInputStream();
+                    ByteArrayOutputStream bo = new ByteArrayOutputStream();
+                    byte[] buf = new byte[8192];
+                    int n;
+                    while ((n = in.read(buf)) > 0) bo.write(buf, 0, n);
+                    in.close();
+                    return bo.toString("UTF-8");
+                }
             } catch (Exception e) {
                 last = e;
             }
         }
-        throw last != null ? last : new Exception("fail");
+        throw last != null ? last : new Exception("Server Error");
     }
 
-    private List<Mosque> parse(String json, Location me) throws Exception {
+    private String queryNominatim(Location l) throws Exception {
+        String urlStr = "https://nominatim.openstreetmap.org/search?q=mosque&format=json&limit=30"
+                + "&lat=" + l.getLatitude() + "&lon=" + l.getLongitude();
+        HttpURLConnection c = (HttpURLConnection) new URL(urlStr).openConnection();
+        c.setRequestMethod("GET");
+        c.setConnectTimeout(10000);
+        c.setReadTimeout(15000);
+        c.setRequestProperty("User-Agent", "NearbyPrayerPlaces/1.0 (Android)");
+
+        if (c.getResponseCode() == 200) {
+            InputStream in = c.getInputStream();
+            ByteArrayOutputStream bo = new ByteArrayOutputStream();
+            byte[] buf = new byte[8192];
+            int n;
+            while ((n = in.read(buf)) > 0) bo.write(buf, 0, n);
+            in.close();
+            return bo.toString("UTF-8");
+        }
+        throw new Exception("Nominatim Fail");
+    }
+
+    private List<Mosque> parseOverpass(String json, Location me) throws Exception {
         JSONArray els = new JSONObject(json).getJSONArray("elements");
         List<Mosque> out = new ArrayList<>();
         for (int i = 0; i < els.length(); i++) {
@@ -540,12 +570,13 @@ public class MainActivity extends Activity implements LocationListener {
                 m.nameAr = tags.has("name:ar") ? tags.optString("name:ar") : null;
                 m.nameEn = tags.has("name:en") ? tags.optString("name:en") : null;
             }
+
             float[] res = new float[2];
             Location.distanceBetween(me.getLatitude(), me.getLongitude(), la, lo, res);
             m.dist = res[0];
             m.bearing = res[1];
 
-            // Reduced duplicate threshold to 5 meters to capture very close locations accurately
+            // Remove duplicates within 5 meters
             boolean dup = false;
             for (Mosque o : out) {
                 float[] d = new float[1];
@@ -557,6 +588,29 @@ public class MainActivity extends Activity implements LocationListener {
                 }
             }
             if (!dup) out.add(m);
+        }
+        Collections.sort(out, (a, b) -> Float.compare(a.dist, b.dist));
+        return out;
+    }
+
+    private List<Mosque> parseNominatim(String json, Location me) throws Exception {
+        JSONArray els = new JSONArray(json);
+        List<Mosque> out = new ArrayList<>();
+        for (int i = 0; i < els.length(); i++) {
+            JSONObject e = els.getJSONObject(i);
+            double la = e.getDouble("lat");
+            double lo = e.getDouble("lon");
+
+            Mosque m = new Mosque();
+            m.lat = la; m.lon = lo;
+            m.name = e.optString("display_name");
+
+            float[] res = new float[2];
+            Location.distanceBetween(me.getLatitude(), me.getLongitude(), la, lo, res);
+            m.dist = res[0];
+            m.bearing = res[1];
+
+            out.add(m);
         }
         Collections.sort(out, (a, b) -> Float.compare(a.dist, b.dist));
         return out;
