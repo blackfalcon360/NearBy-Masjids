@@ -28,8 +28,10 @@ import org.json.JSONObject;
 
 import java.io.ByteArrayOutputStream;
 import java.io.InputStream;
+import java.io.OutputStream;
 import java.net.HttpURLConnection;
 import java.net.URL;
+import java.net.URLEncoder;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
@@ -54,6 +56,7 @@ public class MainActivity extends Activity implements LocationListener {
 
     private boolean arabic;
     private int state = S_IDLE;
+    private int radius = 5000; // Default 5 km radius search
     private int generation = 0;
     private Location loc;
     private final List<Mosque> mosques = new ArrayList<>();
@@ -63,7 +66,7 @@ public class MainActivity extends Activity implements LocationListener {
     private Runnable timeout;
 
     private LinearLayout root, listBox;
-    private TextView titleTv, subtitleTv, refreshBtn, langBtn, statusTv, creditTv;
+    private TextView titleTv, subtitleTv, refreshBtn, langBtn, statusTv, widerBtn, creditTv;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -164,8 +167,25 @@ public class MainActivity extends Activity implements LocationListener {
         listBox.setOrientation(LinearLayout.VERTICAL);
         listBox.setPadding(dp(14), dp(4), dp(14), dp(14));
 
+        widerBtn = pill();
+        widerBtn.setOnClickListener(v -> {
+            if (loc == null) return;
+            radius = radius < 10000 ? 10000 : 25000;
+            generation++;
+            state = S_FETCH;
+            renderAll();
+            fetchNearby(loc, radius, generation);
+        });
+
         ScrollView sv = new ScrollView(this);
-        sv.addView(listBox);
+        LinearLayout scrollContent = new LinearLayout(this);
+        scrollContent.setOrientation(LinearLayout.VERTICAL);
+        scrollContent.addView(listBox);
+        LinearLayout.LayoutParams wl = new LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT);
+        wl.setMargins(dp(14), 0, dp(14), dp(16));
+        scrollContent.addView(widerBtn, wl);
+        sv.addView(scrollContent);
 
         creditTv = new TextView(this);
         creditTv.setText("By: Black Falcon 🦅");
@@ -209,6 +229,7 @@ public class MainActivity extends Activity implements LocationListener {
         langBtn.setText(arabic ? "English" : "العربية");
         langBtn.setLayoutDirection(View.LAYOUT_DIRECTION_LTR);
 
+        String km = String.format(Locale.US, "%.0f", radius / 1000f);
         switch (state) {
             case S_LOC:
                 statusTv.setText(t("Finding your location…", "جاري تحديد موقعك…")); break;
@@ -216,7 +237,7 @@ public class MainActivity extends Activity implements LocationListener {
                 statusTv.setText(t("Searching nearby mosques…", "جاري البحث عن المساجد القريبة…")); break;
             case S_DONE:
                 if (mosques.isEmpty()) {
-                    statusTv.setText(t("No mosques found nearby.", "لم يتم العثور على مساجد قريبة."));
+                    statusTv.setText(t("No mosques found within " + km + " km", "لم يتم العثور على مساجد ضمن " + km + " كم"));
                 } else {
                     statusTv.setText(t(mosques.size() + " places found near you", mosques.size() + " مكان للصلاة بالقرب منك"));
                 }
@@ -230,6 +251,9 @@ public class MainActivity extends Activity implements LocationListener {
             default:
                 statusTv.setText("");
         }
+
+        widerBtn.setText(t("Search wider", "توسيع البحث"));
+        widerBtn.setVisibility(state == S_DONE && radius < 25000 ? View.VISIBLE : View.GONE);
 
         listBox.removeAllViews();
         if (state == S_DONE) {
@@ -276,7 +300,7 @@ public class MainActivity extends Activity implements LocationListener {
         name.setTypeface(Typeface.DEFAULT_BOLD);
 
         TextView sub = new TextView(this);
-        sub.setText(t("Direction: ", "الاتجاه: ") + dirName(m.bearing) + "  •  " + t("Tap to open Google Maps", "اضغط لفتح الخريطة"));
+        sub.setText(t("Direction: ", "الاتجاه: ") + dirName(m.bearing) + "  •  " + t("Tap for Google Maps", "اضغط لفتح الخريطة"));
         sub.setTextColor(GRAY);
         sub.setTextSize(13);
 
@@ -296,7 +320,6 @@ public class MainActivity extends Activity implements LocationListener {
         dist.setBackground(dg);
         c.addView(dist);
 
-        // Direct Google Maps navigation on click
         c.setOnClickListener(v -> openInGoogleMaps(m));
         return c;
     }
@@ -330,6 +353,7 @@ public class MainActivity extends Activity implements LocationListener {
         stopLocation();
         mosques.clear();
         loc = null;
+        radius = 5000;
 
         if (!hasPerm()) {
             state = S_NOPERM;
@@ -389,7 +413,7 @@ public class MainActivity extends Activity implements LocationListener {
         loc = l;
         state = S_FETCH;
         renderAll();
-        fetchMosques(l, generation);
+        fetchNearby(l, radius, generation);
     }
 
     @Override
@@ -403,38 +427,72 @@ public class MainActivity extends Activity implements LocationListener {
     @Override public void onProviderEnabled(String p) { }
     @Override public void onProviderDisabled(String p) { }
 
-    private void fetchMosques(final Location l, final int gen) {
+    private void fetchNearby(final Location l, final int r, final int gen) {
         new Thread(() -> {
             try {
-                // Free OpenStreetMap Search API
-                String urlStr = "https://nominatim.openstreetmap.org/search?q=mosque&format=json&limit=50"
-                        + "&lat=" + l.getLatitude() + "&lon=" + l.getLongitude();
+                // Precise Overpass query targeting strictly within radius meters
+                String around = "(around:" + r + "," + l.getLatitude() + "," + l.getLongitude() + ")";
+                String q = "[out:json][timeout:25];("
+                        + "node[\"amenity\"=\"place_of_worship\"]" + around + ";"
+                        + "way[\"amenity\"=\"place_of_worship\"]" + around + ";"
+                        + "node[\"building\"=\"mosque\"]" + around + ";"
+                        + "way[\"building\"=\"mosque\"]" + around + ";"
+                        + ");out center tags;";
 
-                HttpURLConnection c = (HttpURLConnection) new URL(urlStr).openConnection();
-                c.setRequestMethod("GET");
-                c.setConnectTimeout(15000);
-                c.setReadTimeout(15000);
-                c.setRequestProperty("User-Agent", "NearbyMosquesApp/1.0");
+                String[] servers = {
+                        "https://overpass-api.de/api/interpreter",
+                        "https://overpass.kumi.systems/api/interpreter",
+                        "https://maps.mail.ru/osm/tools/overpass/api/interpreter"
+                };
 
-                if (c.getResponseCode() == 200) {
-                    InputStream in = c.getInputStream();
-                    ByteArrayOutputStream bo = new ByteArrayOutputStream();
-                    byte[] buf = new byte[8192];
-                    int n;
-                    while ((n = in.read(buf)) > 0) bo.write(buf, 0, n);
-                    in.close();
+                String response = null;
+                for (String srv : servers) {
+                    try {
+                        HttpURLConnection c = (HttpURLConnection) new URL(srv).openConnection();
+                        c.setRequestMethod("POST");
+                        c.setConnectTimeout(12000);
+                        c.setReadTimeout(18000);
+                        c.setDoOutput(true);
+                        c.setRequestProperty("User-Agent", "NearbyMosques/1.0");
+                        c.setRequestProperty("Content-Type", "application/x-www-form-urlencoded");
 
-                    JSONArray arr = new JSONArray(bo.toString("UTF-8"));
+                        OutputStream os = c.getOutputStream();
+                        os.write(("data=" + URLEncoder.encode(q, "UTF-8")).getBytes("UTF-8"));
+                        os.close();
+
+                        if (c.getResponseCode() == 200) {
+                            InputStream in = c.getInputStream();
+                            ByteArrayOutputStream bo = new ByteArrayOutputStream();
+                            byte[] buf = new byte[8192];
+                            int n;
+                            while ((n = in.read(buf)) > 0) bo.write(buf, 0, n);
+                            in.close();
+                            response = bo.toString("UTF-8");
+                            break;
+                        }
+                    } catch (Exception ignored) { }
+                }
+
+                if (response != null) {
+                    JSONArray elements = new JSONObject(response).getJSONArray("elements");
                     List<Mosque> res = new ArrayList<>();
 
-                    for (int i = 0; i < arr.length(); i++) {
-                        JSONObject obj = arr.getJSONObject(i);
+                    for (int i = 0; i < elements.length(); i++) {
+                        JSONObject e = elements.getJSONObject(i);
+                        double la, lo;
+                        if (e.has("lat")) { la = e.getDouble("lat"); lo = e.getDouble("lon"); }
+                        else if (e.has("center")) { la = e.getJSONObject("center").getDouble("lat"); lo = e.getJSONObject("center").getDouble("lon"); }
+                        else continue;
+
                         Mosque m = new Mosque();
-                        m.lat = obj.getDouble("lat");
-                        m.lon = obj.getDouble("lon");
-                        
-                        String fullName = obj.optString("display_name", "Mosque");
-                        m.name = fullName.split(",")[0]; // Pehla naam extract karein
+                        m.lat = la; m.lon = lo;
+
+                        JSONObject tags = e.optJSONObject("tags");
+                        if (tags != null) {
+                            m.name = tags.optString("name", tags.optString("name:ar", tags.optString("name:en", "Masjid / Mosque")));
+                        } else {
+                            m.name = "Masjid / Mosque";
+                        }
 
                         float[] results = new float[2];
                         Location.distanceBetween(l.getLatitude(), l.getLongitude(), m.lat, m.lon, results);
@@ -444,6 +502,7 @@ public class MainActivity extends Activity implements LocationListener {
                         res.add(m);
                     }
 
+                    // Sort by closest distance first (e.g., 10m, 50m, 200m...)
                     Collections.sort(res, (a, b) -> Float.compare(a.dist, b.dist));
 
                     runOnUiThread(() -> {
