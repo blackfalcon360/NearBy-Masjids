@@ -28,10 +28,8 @@ import org.json.JSONObject;
 
 import java.io.ByteArrayOutputStream;
 import java.io.InputStream;
-import java.io.OutputStream;
 import java.net.HttpURLConnection;
 import java.net.URL;
-import java.net.URLEncoder;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
@@ -46,19 +44,16 @@ public class MainActivity extends Activity implements LocationListener {
     private static final int GRAY = Color.parseColor("#9E9E9E");
 
     private static final String[] DIR_EN = {"N", "NE", "E", "SE", "S", "SW", "W", "NW"};
-    private static final String[] DIR_AR = {"\u0634\u0645\u0627\u0644", "\u0634\u0645\u0627\u0644 \u0634\u0631\u0642", "\u0631\u0642",
-            "\u062C\u0646\u0648\u0628 \u0634\u0631\u0642", "\u062C\u0646\u0648\u0628", "\u062C\u0646\u0648\u0628 \u063A\u0631\u0628",
-            "\u063A\u0631\u0628", "\u0634\u0645\u0627\u0644 \u063A\u0631\u0628"};
+    private static final String[] DIR_AR = {"شمال", "شمال شرق", "شرق", "جنوب شرق", "جنوب", "جنوب غرب", "غرب", "شمال غرب"};
 
     static class Mosque {
-        String name, nameAr, nameEn;
+        String name;
         double lat, lon;
         float dist, bearing;
     }
 
     private boolean arabic;
     private int state = S_IDLE;
-    private int radius = 5000;
     private int generation = 0;
     private Location loc;
     private final List<Mosque> mosques = new ArrayList<>();
@@ -68,7 +63,7 @@ public class MainActivity extends Activity implements LocationListener {
     private Runnable timeout;
 
     private LinearLayout root, listBox;
-    private TextView titleTv, subtitleTv, refreshBtn, langBtn, statusTv, widerBtn, creditTv;
+    private TextView titleTv, subtitleTv, refreshBtn, langBtn, statusTv, creditTv;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -118,7 +113,6 @@ public class MainActivity extends Activity implements LocationListener {
 
     private int dp(int v) { return Math.round(v * getResources().getDisplayMetrics().density); }
 
-    // ------------------------------------------------------------------ UI
     private void buildUi() {
         root = new LinearLayout(this);
         root.setOrientation(LinearLayout.VERTICAL);
@@ -130,7 +124,7 @@ public class MainActivity extends Activity implements LocationListener {
 
         titleTv = new TextView(this);
         titleTv.setTextColor(Color.WHITE);
-        titleTv.setTextSize(22);
+        titleTv.setTextSize(20);
         titleTv.setTypeface(Typeface.DEFAULT_BOLD);
 
         subtitleTv = new TextView(this);
@@ -170,34 +164,16 @@ public class MainActivity extends Activity implements LocationListener {
         listBox.setOrientation(LinearLayout.VERTICAL);
         listBox.setPadding(dp(14), dp(4), dp(14), dp(14));
 
-        widerBtn = pill();
-        widerBtn.setOnClickListener(v -> {
-            if (loc == null) return;
-            radius = radius < 10000 ? 10000 : 20000;
-            generation++;
-            state = S_FETCH;
-            renderAll();
-            fetch(loc, radius, generation);
-        });
-
         ScrollView sv = new ScrollView(this);
-        LinearLayout scrollContent = new LinearLayout(this);
-        scrollContent.setOrientation(LinearLayout.VERTICAL);
-        scrollContent.addView(listBox);
-        LinearLayout.LayoutParams wl = new LinearLayout.LayoutParams(
-                LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT);
-        wl.setMargins(dp(14), 0, dp(14), dp(16));
-        scrollContent.addView(widerBtn, wl);
-        sv.addView(scrollContent);
+        sv.addView(listBox);
 
         creditTv = new TextView(this);
-        creditTv.setText("By: Black Falcon \uD83E\uDD85");
+        creditTv.setText("By: Black Falcon 🦅");
         creditTv.setTextColor(Color.WHITE);
         creditTv.setTextSize(14);
         creditTv.setTypeface(Typeface.DEFAULT_BOLD);
         creditTv.setGravity(Gravity.RIGHT);
         creditTv.setPadding(dp(16), dp(8), dp(16), dp(10));
-        creditTv.setLayoutDirection(View.LAYOUT_DIRECTION_LTR);
 
         root.addView(header);
         root.addView(statusTv);
@@ -227,41 +203,33 @@ public class MainActivity extends Activity implements LocationListener {
 
     private void renderAll() {
         root.setLayoutDirection(arabic ? View.LAYOUT_DIRECTION_RTL : View.LAYOUT_DIRECTION_LTR);
-        titleTv.setText("\uD83D\uDD4C " + t("Find a place to pray near you...", "\u0627\u0628\u062D\u062B \u0639\u0646 \u0645\u0643\u0627\u0646 \u0644\u0644\u0635\u0644\u0627\u0629 \u0628\u0627\u0644\u0642\u0631\u0628 \u0645\u0646\u0643..."));
-        subtitleTv.setText(t("Nearby Mosques, Jamia & Madrasas", "\u0627\u0644\u0645\u0633\u0627\u062C\u062F \u0648\u0627\u0644\u062C\u0648\u0627\u0645\u0639 \u0648\u0627\u0644\u0645\u062F\u0627\u0631\u0633 \u0627\u0644\u0642\u0631\u064A\u0628\u0629"));
-        refreshBtn.setText("\u21BB  " + t("Refresh location", "\u062A\u062D\u062F\u064A\u062B \u0627\u0644\u0645\u0648\u0642\u0639"));
-        langBtn.setText(arabic ? "English" : "\u0627\u0639\u0631\u0628\u064A\u0629");
+        titleTv.setText("🕌 " + t("Find a place to pray near you...", "ابحث عن مكان للصلاة بالقرب منك..."));
+        subtitleTv.setText(t("Nearby Mosques, Jamia & Madrasas", "المساجد والجوامع والمدارس القريبة"));
+        refreshBtn.setText("↻  " + t("Refresh location", "تحديث الموقع"));
+        langBtn.setText(arabic ? "English" : "العربية");
         langBtn.setLayoutDirection(View.LAYOUT_DIRECTION_LTR);
 
-        String km = String.format(Locale.US, "%.0f", radius / 1000f);
         switch (state) {
             case S_LOC:
-                statusTv.setText(t("Finding your location\u2026", "\u062C\u0627\u0631\u064D \u062A\u062D\u062F\u064A\u062F \u0645\u0648\u0642\u0639\u0643\2026")); break;
+                statusTv.setText(t("Finding your location…", "جاري تحديد موقعك…")); break;
             case S_FETCH:
-                statusTv.setText(t("Searching nearby prayer places\u2026", "\u062C\u0627\u0631\u064D \u0627\u0644\u0628\u062D\u062B \u0639\u0646 \u0623\u0645\u0627\u0643\u0646 \u0627\u0644\u0635\u0644\u0627\u0629\2026")); break;
+                statusTv.setText(t("Searching nearby mosques…", "جاري البحث عن المساجد القريبة…")); break;
             case S_DONE:
                 if (mosques.isEmpty()) {
-                    statusTv.setText(t("No prayer places found within " + km + " km", "\u0644\u0645 \u064A\u062A\u0645 \u0627\u0644\u0639\u062B\u0648\u0631 \u0639\u0644\u0649 \u0623\u0645\u0627\u0643\u0646 \u0635\u0644\u0627\u0629 \u0636\u0645\u0646 " + km + " \u0643\u0645"));
+                    statusTv.setText(t("No mosques found nearby.", "لم يتم العثور على مساجد قريبة."));
                 } else {
-                    statusTv.setText(t(mosques.size() + " places found within " + km + " km",
-                            mosques.size() + " \u0623\u0645\u0627\u0643\u0646 \u0635\u0644\u0627\u0629 \u0636\u0645\u0646 " + km + " \u0643\u0645"));
+                    statusTv.setText(t(mosques.size() + " places found near you", mosques.size() + " مكان للصلاة بالقرب منك"));
                 }
                 break;
             case S_NONET:
-                statusTv.setText(t("Couldn't load places. Check internet connection and refresh.",
-                        "\u062A\u0639\u0630\u0651\u0631 \u062A\u062D\u0645\u064A\u0644 \u0627\u0644\u0623\u0645\u0627\u0643\u0646. \u062A\u062D\u0642\u0642 \u0645\u0646 \u0627\u0644\u0625\u0646\u062A\u0631\u0646\u062A.")); break;
+                statusTv.setText(t("Check your internet connection and refresh.", "تحقق من الاتصال بالإنترنت ثم حدّث.")); break;
             case S_NOPERM:
-                statusTv.setText(t("Location permission is needed to find places near you.",
-                        "\u0645\u0637\u0644\u0648\u0628 \u0625\u0630\u0646 \u0627\u0644\u0645\u0648\u0642\u0639 \u0644\u0644\u0639\u062B\u0648\u0631 \u0639\u0644\u0649 \u0623\u0645\u0627\u0643\u0646 \u0627\u0644\u0635\u0644\u0627\u0629.")); break;
+                statusTv.setText(t("Location permission is needed.", "مطلوب إذن الموقع.")); break;
             case S_NOLOC:
-                statusTv.setText(t("Couldn't get your location. Turn on GPS and refresh.",
-                        "\u062A\u0639\u0630\u0651\u0631 \u062A\u062D\u062F\u064A\u062F \u0645\u0648\u0642\u0639\u0643. \u0634\u063A\u0651\u0644 \u0627\u0644\u0640 GPS \u062B\u0645 \u062D\u062F\u0651\u062B.")); break;
+                statusTv.setText(t("Turn on GPS and refresh.", "شغّل الـ GPS ثم حدّث.")); break;
             default:
                 statusTv.setText("");
         }
-
-        widerBtn.setText(t("Search wider", "\u062A\u0648\u0633\u064A\u0639 \u0627\u0644\u0628\u062D\u062B"));
-        widerBtn.setVisibility(state == S_DONE && radius < 20000 ? View.VISIBLE : View.GONE);
 
         listBox.removeAllViews();
         if (state == S_DONE) {
@@ -286,7 +254,7 @@ public class MainActivity extends Activity implements LocationListener {
         c.setLayoutParams(clp);
 
         TextView icon = new TextView(this);
-        icon.setText("\uD83D\uDD4C");
+        icon.setText("🕌");
         icon.setTextSize(28);
         icon.setGravity(Gravity.CENTER);
         GradientDrawable ig = new GradientDrawable();
@@ -302,14 +270,13 @@ public class MainActivity extends Activity implements LocationListener {
         colp.setMarginEnd(dp(8));
 
         TextView name = new TextView(this);
-        name.setText(displayName(m));
+        name.setText(m.name);
         name.setTextColor(Color.WHITE);
-        name.setTextSize(17);
+        name.setTextSize(16);
         name.setTypeface(Typeface.DEFAULT_BOLD);
 
         TextView sub = new TextView(this);
-        sub.setText(t("Direction: ", "\u0627\u0644\u0627\u062A\u062C\u0627\u0627\u0647: ") + dirName(m.bearing)
-                + "  \u2022  " + t("Tap for directions", "\u0627\u0636\u063A\u0637 \u0644\u0644\u0645\u0633\u0627\u0631"));
+        sub.setText(t("Direction: ", "الاتجاه: ") + dirName(m.bearing) + "  •  " + t("Tap to open Google Maps", "اضغط لفتح الخريطة"));
         sub.setTextColor(GRAY);
         sub.setTextSize(13);
 
@@ -322,28 +289,16 @@ public class MainActivity extends Activity implements LocationListener {
         dist.setTextColor(Color.BLACK);
         dist.setTextSize(14);
         dist.setTypeface(Typeface.DEFAULT_BOLD);
-        dist.setPadding(dp(12), dp(6), dp(12), dp(6));
+        dist.setPadding(dp(10), dp(6), dp(10), dp(6));
         GradientDrawable dg = new GradientDrawable();
         dg.setColor(GREEN);
         dg.setCornerRadius(dp(16));
         dist.setBackground(dg);
-        dist.setLayoutDirection(View.LAYOUT_DIRECTION_LTR);
         c.addView(dist);
 
-        c.setOnClickListener(v -> openMap(m));
+        // Direct Google Maps navigation on click
+        c.setOnClickListener(v -> openInGoogleMaps(m));
         return c;
-    }
-
-    private String displayName(Mosque m) {
-        String n;
-        if (arabic) n = first(m.nameAr, m.name, m.nameEn);
-        else n = first(m.nameEn, m.name, m.nameAr);
-        return n != null ? n : t("Mosque / Prayer Place", "\u0645\u0633\u062C\u062F / \u0645\u0635\u0644\u0649");
-    }
-
-    private static String first(String... s) {
-        for (String x : s) if (x != null && !x.trim().isEmpty()) return x.trim();
-        return null;
     }
 
     private String dirName(float bearing) {
@@ -353,30 +308,28 @@ public class MainActivity extends Activity implements LocationListener {
     }
 
     private String fmtDist(float meters) {
-        if (meters < 1000) return String.format(Locale.US, "%d %s", Math.round(meters), arabic ? "\u0645" : "m");
-        return String.format(Locale.US, "%.1f %s", meters / 1000f, arabic ? "\u0643\u0645" : "km");
+        if (meters < 1000) return String.format(Locale.US, "%d %s", Math.round(meters), arabic ? "م" : "m");
+        return String.format(Locale.US, "%.1f %s", meters / 1000f, arabic ? "كم" : "km");
     }
 
-    private void openMap(Mosque m) {
-        String label = Uri.encode(displayName(m));
-        Uri geo = Uri.parse("geo:" + m.lat + "," + m.lon + "?q=" + m.lat + "," + m.lon + "(" + label + ")");
-        try {
-            startActivity(new Intent(Intent.ACTION_VIEW, geo));
-        } catch (Exception e) {
-            try {
-                startActivity(new Intent(Intent.ACTION_VIEW,
-                        Uri.parse("https://www.openstreetmap.org/?mlat=" + m.lat + "&mlon=" + m.lon + "#map=17/" + m.lat + "/" + m.lon)));
-            } catch (Exception ignored) { }
+    private void openInGoogleMaps(Mosque m) {
+        Uri mapsUri = Uri.parse("google.navigation:q=" + m.lat + "," + m.lon + "&mode=d");
+        Intent mapIntent = new Intent(Intent.ACTION_VIEW, mapsUri);
+        mapIntent.setPackage("com.google.android.apps.maps");
+
+        if (mapIntent.resolveActivity(getPackageManager()) != null) {
+            startActivity(mapIntent);
+        } else {
+            Uri webUri = Uri.parse("https://www.google.com/maps/search/?api=1&query=" + m.lat + "," + m.lon);
+            startActivity(new Intent(Intent.ACTION_VIEW, webUri));
         }
     }
 
-    // ------------------------------------------------------------ Location
     private void startRefresh() {
         generation++;
         stopLocation();
         mosques.clear();
         loc = null;
-        radius = 5000;
 
         if (!hasPerm()) {
             state = S_NOPERM;
@@ -436,7 +389,7 @@ public class MainActivity extends Activity implements LocationListener {
         loc = l;
         state = S_FETCH;
         renderAll();
-        fetch(l, radius, generation);
+        fetchMosques(l, generation);
     }
 
     @Override
@@ -450,70 +403,18 @@ public class MainActivity extends Activity implements LocationListener {
     @Override public void onProviderEnabled(String p) { }
     @Override public void onProviderDisabled(String p) { }
 
-    // --------------------------------------------------------------- Fetch
-    private void fetch(final Location l, final int r, final int gen) {
+    private void fetchMosques(final Location l, final int gen) {
         new Thread(() -> {
             try {
-                String json = queryOverpass(l, r);
-                List<Mosque> res = parseOverpass(json, l);
+                // Free OpenStreetMap Search API
+                String urlStr = "https://nominatim.openstreetmap.org/search?q=mosque&format=json&limit=50"
+                        + "&lat=" + l.getLatitude() + "&lon=" + l.getLongitude();
 
-                // Fallback: If Overpass returns empty, try Nominatim API
-                if (res.isEmpty()) {
-                    try {
-                        String nomJson = queryNominatim(l);
-                        res = parseNominatim(nomJson, l);
-                    } catch (Exception ignored) { }
-                }
-
-                final List<Mosque> finalRes = res;
-                runOnUiThread(() -> {
-                    if (gen != generation || isFinishing()) return;
-                    mosques.clear();
-                    mosques.addAll(finalRes);
-                    state = S_DONE;
-                    renderAll();
-                });
-            } catch (Exception e) {
-                runOnUiThread(() -> {
-                    if (gen != generation || isFinishing()) return;
-                    state = S_NONET;
-                    renderAll();
-                });
-            }
-        }).start();
-    }
-
-    private String queryOverpass(Location l, int r) throws Exception {
-        String around = "(around:" + r + "," + l.getLatitude() + "," + l.getLongitude() + ")";
-        
-        // Clean and valid Overpass QL
-        String q = "[out:json][timeout:25];("
-                + "node[\"amenity\"=\"place_of_worship\"]" + around + ";"
-                + "way[\"amenity\"=\"place_of_worship\"]" + around + ";"
-                + "node[\"building\"=\"mosque\"]" + around + ";"
-                + "way[\"building\"=\"mosque\"]" + around + ";"
-                + "node[\"amenity\"=\"school\"]" + around + ";"
-                + ");out center tags;";
-
-        String[] endpoints = {
-                "https://overpass-api.de/api/interpreter",
-                "https://overpass.kumi.systems/api/interpreter",
-                "https://maps.mail.ru/osm/tools/overpass/api/interpreter"
-        };
-
-        Exception last = null;
-        for (String ep : endpoints) {
-            try {
-                HttpURLConnection c = (HttpURLConnection) new URL(ep).openConnection();
-                c.setRequestMethod("POST");
+                HttpURLConnection c = (HttpURLConnection) new URL(urlStr).openConnection();
+                c.setRequestMethod("GET");
                 c.setConnectTimeout(15000);
-                c.setReadTimeout(25000);
-                c.setDoOutput(true);
-                c.setRequestProperty("User-Agent", "NearbyPrayerPlaces/1.0 (Android)");
-                c.setRequestProperty("Content-Type", "application/x-www-form-urlencoded");
-                OutputStream os = c.getOutputStream();
-                os.write(("data=" + URLEncoder.encode(q, "UTF-8")).getBytes("UTF-8"));
-                os.close();
+                c.setReadTimeout(15000);
+                c.setRequestProperty("User-Agent", "NearbyMosquesApp/1.0");
 
                 if (c.getResponseCode() == 200) {
                     InputStream in = c.getInputStream();
@@ -522,97 +423,46 @@ public class MainActivity extends Activity implements LocationListener {
                     int n;
                     while ((n = in.read(buf)) > 0) bo.write(buf, 0, n);
                     in.close();
-                    return bo.toString("UTF-8");
+
+                    JSONArray arr = new JSONArray(bo.toString("UTF-8"));
+                    List<Mosque> res = new ArrayList<>();
+
+                    for (int i = 0; i < arr.length(); i++) {
+                        JSONObject obj = arr.getJSONObject(i);
+                        Mosque m = new Mosque();
+                        m.lat = obj.getDouble("lat");
+                        m.lon = obj.getDouble("lon");
+                        
+                        String fullName = obj.optString("display_name", "Mosque");
+                        m.name = fullName.split(",")[0]; // Pehla naam extract karein
+
+                        float[] results = new float[2];
+                        Location.distanceBetween(l.getLatitude(), l.getLongitude(), m.lat, m.lon, results);
+                        m.dist = results[0];
+                        m.bearing = results[1];
+
+                        res.add(m);
+                    }
+
+                    Collections.sort(res, (a, b) -> Float.compare(a.dist, b.dist));
+
+                    runOnUiThread(() -> {
+                        if (gen != generation || isFinishing()) return;
+                        mosques.clear();
+                        mosques.addAll(res);
+                        state = S_DONE;
+                        renderAll();
+                    });
+                } else {
+                    throw new Exception("Error");
                 }
             } catch (Exception e) {
-                last = e;
+                runOnUiThread(() -> {
+                    if (gen != generation || isFinishing()) return;
+                    state = S_NONET;
+                    renderAll();
+                });
             }
-        }
-        throw last != null ? last : new Exception("Server Error");
-    }
-
-    private String queryNominatim(Location l) throws Exception {
-        String urlStr = "https://nominatim.openstreetmap.org/search?q=mosque&format=json&limit=30"
-                + "&lat=" + l.getLatitude() + "&lon=" + l.getLongitude();
-        HttpURLConnection c = (HttpURLConnection) new URL(urlStr).openConnection();
-        c.setRequestMethod("GET");
-        c.setConnectTimeout(10000);
-        c.setReadTimeout(15000);
-        c.setRequestProperty("User-Agent", "NearbyPrayerPlaces/1.0 (Android)");
-
-        if (c.getResponseCode() == 200) {
-            InputStream in = c.getInputStream();
-            ByteArrayOutputStream bo = new ByteArrayOutputStream();
-            byte[] buf = new byte[8192];
-            int n;
-            while ((n = in.read(buf)) > 0) bo.write(buf, 0, n);
-            in.close();
-            return bo.toString("UTF-8");
-        }
-        throw new Exception("Nominatim Fail");
-    }
-
-    private List<Mosque> parseOverpass(String json, Location me) throws Exception {
-        JSONArray els = new JSONObject(json).getJSONArray("elements");
-        List<Mosque> out = new ArrayList<>();
-        for (int i = 0; i < els.length(); i++) {
-            JSONObject e = els.getJSONObject(i);
-            double la, lo;
-            if (e.has("lat")) { la = e.getDouble("lat"); lo = e.getDouble("lon"); }
-            else if (e.has("center")) { la = e.getJSONObject("center").getDouble("lat"); lo = e.getJSONObject("center").getDouble("lon"); }
-            else continue;
-
-            Mosque m = new Mosque();
-            m.lat = la; m.lon = lo;
-            JSONObject tags = e.optJSONObject("tags");
-            if (tags != null) {
-                m.name = tags.has("name") ? tags.optString("name") : null;
-                m.nameAr = tags.has("name:ar") ? tags.optString("name:ar") : null;
-                m.nameEn = tags.has("name:en") ? tags.optString("name:en") : null;
-            }
-
-            float[] res = new float[2];
-            Location.distanceBetween(me.getLatitude(), me.getLongitude(), la, lo, res);
-            m.dist = res[0];
-            m.bearing = res[1];
-
-            // Remove duplicates within 5 meters
-            boolean dup = false;
-            for (Mosque o : out) {
-                float[] d = new float[1];
-                Location.distanceBetween(o.lat, o.lon, la, lo, d);
-                if (d[0] < 5) {
-                    dup = true;
-                    if (o.name == null && m.name != null) { o.name = m.name; o.nameAr = m.nameAr; o.nameEn = m.nameEn; }
-                    break;
-                }
-            }
-            if (!dup) out.add(m);
-        }
-        Collections.sort(out, (a, b) -> Float.compare(a.dist, b.dist));
-        return out;
-    }
-
-    private List<Mosque> parseNominatim(String json, Location me) throws Exception {
-        JSONArray els = new JSONArray(json);
-        List<Mosque> out = new ArrayList<>();
-        for (int i = 0; i < els.length(); i++) {
-            JSONObject e = els.getJSONObject(i);
-            double la = e.getDouble("lat");
-            double lo = e.getDouble("lon");
-
-            Mosque m = new Mosque();
-            m.lat = la; m.lon = lo;
-            m.name = e.optString("display_name");
-
-            float[] res = new float[2];
-            Location.distanceBetween(me.getLatitude(), me.getLongitude(), la, lo, res);
-            m.dist = res[0];
-            m.bearing = res[1];
-
-            out.add(m);
-        }
-        Collections.sort(out, (a, b) -> Float.compare(a.dist, b.dist));
-        return out;
+        }).start();
     }
 }
